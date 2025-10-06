@@ -1,9 +1,129 @@
 import React, { useState, useEffect, ChangeEvent, FormEvent } from "react";
 import { motion } from "framer-motion";
-import { mockPets, mockLogs } from "../data/mockPets";
-import type { Pet, ActivityLog } from "../data/mockPets";
 import { Navigation } from "../components/Navigation";
 import { useNavigate } from "react-router-dom";
+
+// Firebase REST API setup
+const FIREBASE_PROJECT_ID = "petrecord-84cb4";
+const FIREBASE_BASE_URL = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents`;
+
+// Types
+interface Pet {
+  id: string;
+  name: string;
+  species: string;
+  breed: string;
+  birthday: string;
+  photo: string;
+}
+
+interface ActivityLog {
+  id: string;
+  date: string;
+  activity: string;
+  note: string;
+  petName: string;
+  petId: string;
+}
+
+// Helper functions
+function mapDocToPet(doc: any): Pet {
+  return {
+    id: doc.name.split("/").pop(),
+    name: doc.fields.name.stringValue,
+    species: doc.fields.species.stringValue,
+    breed: doc.fields.breed.stringValue,
+    birthday: doc.fields.birthday.stringValue,
+    photo: doc.fields.photo.stringValue,
+  };
+}
+
+function mapDocToLog(doc: any): ActivityLog {
+  return {
+    id: doc.name.split("/").pop(),
+    date: doc.fields.date.stringValue,
+    activity: doc.fields.activity.stringValue,
+    note: doc.fields.note.stringValue,
+    petName: doc.fields.petName.stringValue,
+    petId: doc.fields.petId.stringValue,
+  };
+}
+
+// API functions
+async function fetchPets(): Promise<Pet[]> {
+  try {
+    const res = await fetch(`${FIREBASE_BASE_URL}/pets`);
+    const json = await res.json();
+    if (!json.documents) return [];
+    return json.documents.map(mapDocToPet);
+  } catch (error) {
+    console.error("Error fetching pets:", error);
+    return [];
+  }
+}
+
+async function fetchActivityLogs(): Promise<ActivityLog[]> {
+  try {
+    const res = await fetch(`${FIREBASE_BASE_URL}/activityLogs`);
+    const json = await res.json();
+    if (!json.documents) return [];
+    return json.documents.map(mapDocToLog);
+  } catch (error) {
+    console.error("Error fetching logs:", error);
+    return [];
+  }
+}
+
+async function addActivityLog(log: Omit<ActivityLog, "id">): Promise<string | null> {
+  try {
+    const res = await fetch(`${FIREBASE_BASE_URL}/activityLogs`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        fields: {
+          date: { stringValue: log.date },
+          activity: { stringValue: log.activity },
+          note: { stringValue: log.note },
+          petName: { stringValue: log.petName },
+          petId: { stringValue: log.petId },
+        },
+      }),
+    });
+    const json = await res.json();
+    return json.name.split("/").pop();
+  } catch (error) {
+    console.error("Error adding log:", error);
+    return null;
+  }
+}
+
+async function updateActivityLog(log: ActivityLog): Promise<void> {
+  try {
+    await fetch(`${FIREBASE_BASE_URL}/activityLogs/${log.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        fields: {
+          date: { stringValue: log.date },
+          activity: { stringValue: log.activity },
+          note: { stringValue: log.note },
+          petName: { stringValue: log.petName },
+          petId: { stringValue: log.petId },
+        },
+      }),
+    });
+  } catch (error) {
+    console.error("Error updating log:", error);
+  }
+}
+
+async function deleteActivityLog(id: string): Promise<void> {
+  try {
+    await fetch(`${FIREBASE_BASE_URL}/activityLogs/${id}`, { method: "DELETE" });
+  } catch (error) {
+    console.error("Error deleting log:", error);
+  }
+}
 
 // ---------- UI Components ---------- //
 
@@ -132,7 +252,6 @@ const Badge: React.FC<{
   </span>
 );
 
-// Simple icons (using emojis for now)
 const Plus = () => <span style={{ fontSize: "1.25rem" }}>＋</span>;
 const Search = () => <span style={{ fontSize: "1rem" }}>🔍</span>;
 const Edit = () => <span style={{ fontSize: "1rem" }}>✏️</span>;
@@ -179,7 +298,7 @@ const LogFormDialog: React.FC<LogFormDialogProps> = ({
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
-    onSave({ ...formData, id: editingLog?.id ?? Date.now().toString() });
+    onSave(formData);
     onClose();
   };
 
@@ -213,10 +332,7 @@ const LogFormDialog: React.FC<LogFormDialogProps> = ({
           {editingLog ? "Edit Log" : "Add New Log"}
         </h2>
 
-        <form
-          onSubmit={handleSubmit}
-          style={{ display: "flex", flexDirection: "column", gap: "16px" }}
-        >
+        <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
           <Select
             value={formData.petId}
             onValueChange={(value) => {
@@ -291,9 +407,9 @@ const LogFormDialog: React.FC<LogFormDialogProps> = ({
             >
               Cancel
             </Button>
-            <Button type="submit">Save</Button>
+            <Button onClick={handleSubmit}>Save</Button>
           </div>
-        </form>
+        </div>
       </div>
     </div>
   );
@@ -321,19 +437,45 @@ export const BehaviorLogs: React.FC = () => {
         break;
     }
   };
-  const [logs, setLogs] = useState<ActivityLog[]>(mockLogs);
+
+  const [logs, setLogs] = useState<ActivityLog[]>([]);
+  const [pets, setPets] = useState<Pet[]>([]);
+  const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingLog, setEditingLog] = useState<ActivityLog | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterPet, setFilterPet] = useState("all");
   const [filterActivity, setFilterActivity] = useState("all");
 
-  const handleSaveLog = (logData: ActivityLog) => {
-    setLogs((prev) =>
-      prev.some((l) => l.id === logData.id)
-        ? prev.map((l) => (l.id === logData.id ? logData : l))
-        : [logData, ...prev]
-    );
+  useEffect(() => {
+    async function loadData() {
+      setLoading(true);
+      const [fetchedPets, fetchedLogs] = await Promise.all([
+        fetchPets(),
+        fetchActivityLogs(),
+      ]);
+      setPets(fetchedPets);
+      setLogs(fetchedLogs);
+      setLoading(false);
+    }
+    loadData();
+  }, []);
+
+  const handleSaveLog = async (logData: ActivityLog) => {
+    if (logData.id) {
+      await updateActivityLog(logData);
+      setLogs((prev) => prev.map((l) => (l.id === logData.id ? logData : l)));
+    } else {
+      const newId = await addActivityLog(logData);
+      if (newId) {
+        setLogs((prev) => [{ ...logData, id: newId }, ...prev]);
+      }
+    }
+  };
+
+  const handleDeleteLog = async (id: string) => {
+    await deleteActivityLog(id);
+    setLogs((prev) => prev.filter((l) => l.id !== id));
   };
 
   const filteredLogs = logs.filter((log) => {
@@ -358,6 +500,22 @@ export const BehaviorLogs: React.FC = () => {
     Other: { backgroundColor: "#F3F4F6", color: "#111827" },
   };
 
+  if (loading) {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "#FEF9F5",
+        }}
+      >
+        <div style={{ fontSize: "1.5rem", color: "#6B7280" }}>Loading...</div>
+      </div>
+    );
+  }
+
   return (
     <div
       style={{
@@ -366,11 +524,10 @@ export const BehaviorLogs: React.FC = () => {
         width: "100vw",
         overflowX: "hidden",
         background: "#FEF9F5",
-       
       }}
     >
       <Navigation currentPage="logs" onNavigate={onNavigate} />
-      <div style={{ maxWidth: 1280, margin: "auto" , padding: "0 1.5rem"  }}>
+      <div style={{ maxWidth: 1280, margin: "auto", padding: "0 1.5rem" }}>
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -408,7 +565,6 @@ export const BehaviorLogs: React.FC = () => {
           </div>
         </motion.div>
 
-        {/* Search + Filters */}
         <div
           style={{
             background: "linear-gradient(to bottom right, white, #F9FAFB)",
@@ -433,7 +589,7 @@ export const BehaviorLogs: React.FC = () => {
             <div style={{ minWidth: 160 }}>
               <Select value={filterPet} onValueChange={setFilterPet}>
                 <option value="all">All Pets</option>
-                {mockPets.map((pet) => (
+                {pets.map((pet) => (
                   <option key={pet.id} value={pet.id}>
                     {pet.name}
                   </option>
@@ -461,7 +617,6 @@ export const BehaviorLogs: React.FC = () => {
           </div>
         </div>
 
-        {/* Logs Table */}
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
           <table
             style={{
@@ -519,10 +674,7 @@ export const BehaviorLogs: React.FC = () => {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() =>
-                        setLogs((prev) => prev.filter((l) => l.id !== log.id))
-                      }
-
+                      onClick={() => handleDeleteLog(log.id)}
                     >
                       <Trash2 />
                     </Button>
@@ -545,13 +697,12 @@ export const BehaviorLogs: React.FC = () => {
         onClose={() => setDialogOpen(false)}
         onSave={handleSaveLog}
         editingLog={editingLog}
-        pets={mockPets}
+        pets={pets}
       />
     </div>
   );
 };
 
-// --- Simple table cell style ---
 const th: React.CSSProperties = {
   padding: "12px 24px",
   textAlign: "left",
