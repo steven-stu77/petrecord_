@@ -2,128 +2,16 @@ import React, { useState, useEffect, ChangeEvent, FormEvent } from "react";
 import { motion } from "framer-motion";
 import { Navigation } from "../components/Navigation";
 import { useNavigate } from "react-router-dom";
+import {
+  // Pet,
+  // ActivityLog,
+  fetchPets,
+  fetchActivityLogs,
+  addActivityLog,
+  updateActivityLog,
+  deleteActivityLog,
+} from "../data/mockPets";
 
-// Firebase REST API setup
-const FIREBASE_PROJECT_ID = "petrecord-84cb4";
-const FIREBASE_BASE_URL = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents`;
-
-// Types
-interface Pet {
-  id: string;
-  name: string;
-  species: string;
-  breed: string;
-  birthday: string;
-  photo: string;
-}
-
-interface ActivityLog {
-  id: string;
-  date: string;
-  activity: string;
-  note: string;
-  petName: string;
-  petId: string;
-}
-
-// Helper functions
-function mapDocToPet(doc: any): Pet {
-  return {
-    id: doc.name.split("/").pop(),
-    name: doc.fields.name.stringValue,
-    species: doc.fields.species.stringValue,
-    breed: doc.fields.breed.stringValue,
-    birthday: doc.fields.birthday.stringValue,
-    photo: doc.fields.photo.stringValue,
-  };
-}
-
-function mapDocToLog(doc: any): ActivityLog {
-  return {
-    id: doc.name.split("/").pop(),
-    date: doc.fields.date.stringValue,
-    activity: doc.fields.activity.stringValue,
-    note: doc.fields.note.stringValue,
-    petName: doc.fields.petName.stringValue,
-    petId: doc.fields.petId.stringValue,
-  };
-}
-
-// API functions
-async function fetchPets(): Promise<Pet[]> {
-  try {
-    const res = await fetch(`${FIREBASE_BASE_URL}/pets`);
-    const json = await res.json();
-    if (!json.documents) return [];
-    return json.documents.map(mapDocToPet);
-  } catch (error) {
-    console.error("Error fetching pets:", error);
-    return [];
-  }
-}
-
-async function fetchActivityLogs(): Promise<ActivityLog[]> {
-  try {
-    const res = await fetch(`${FIREBASE_BASE_URL}/activityLogs`);
-    const json = await res.json();
-    if (!json.documents) return [];
-    return json.documents.map(mapDocToLog);
-  } catch (error) {
-    console.error("Error fetching logs:", error);
-    return [];
-  }
-}
-
-async function addActivityLog(log: Omit<ActivityLog, "id">): Promise<string | null> {
-  try {
-    const res = await fetch(`${FIREBASE_BASE_URL}/activityLogs`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        fields: {
-          date: { stringValue: log.date },
-          activity: { stringValue: log.activity },
-          note: { stringValue: log.note },
-          petName: { stringValue: log.petName },
-          petId: { stringValue: log.petId },
-        },
-      }),
-    });
-    const json = await res.json();
-    return json.name.split("/").pop();
-  } catch (error) {
-    console.error("Error adding log:", error);
-    return null;
-  }
-}
-
-async function updateActivityLog(log: ActivityLog): Promise<void> {
-  try {
-    await fetch(`${FIREBASE_BASE_URL}/activityLogs/${log.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        fields: {
-          date: { stringValue: log.date },
-          activity: { stringValue: log.activity },
-          note: { stringValue: log.note },
-          petName: { stringValue: log.petName },
-          petId: { stringValue: log.petId },
-        },
-      }),
-    });
-  } catch (error) {
-    console.error("Error updating log:", error);
-  }
-}
-
-async function deleteActivityLog(id: string): Promise<void> {
-  try {
-    await fetch(`${FIREBASE_BASE_URL}/activityLogs/${id}`, { method: "DELETE" });
-  } catch (error) {
-    console.error("Error deleting log:", error);
-  }
-}
 
 // ---------- UI Components ---------- //
 

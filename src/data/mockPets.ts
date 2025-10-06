@@ -96,51 +96,67 @@ export async function deletePet(id: string): Promise<void> {
 
 // ---------- ACTIVITY LOGS CRUD ---------- //
 
-// Fetch all activity logs
 export async function fetchActivityLogs(): Promise<ActivityLog[]> {
-  const res = await fetch(`${FIREBASE_BASE_URL}/activityLogs`);
-  const json = await res.json();
-  if (!json.documents) return [];
-  return json.documents.map(mapDocToLog);
+  try {
+    const res = await fetch(`${FIREBASE_BASE_URL}/activityLogs`);
+    const json = await res.json();
+    if (!json.documents) return [];
+    return json.documents.map(mapDocToLog);
+  } catch (error) {
+    console.error("Error fetching logs:", error);
+    return [];
+  }
 }
 
-// Add a new activity log
-export async function addActivityLog(log: Omit<ActivityLog, "id">): Promise<void> {
-  await fetch(`${FIREBASE_BASE_URL}/activityLogs`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      fields: {
-        date: { stringValue: log.date },
-        activity: { stringValue: log.activity },
-        note: { stringValue: log.note },
-        petName: { stringValue: log.petName },
-        petId: { stringValue: log.petId },
-      },
-    }),
-  });
+export async function addActivityLog(log: Omit<ActivityLog, "id">): Promise<string | null> {
+  try {
+    const res = await fetch(`${FIREBASE_BASE_URL}/activityLogs`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        fields: {
+          date: { stringValue: log.date },
+          activity: { stringValue: log.activity },
+          note: { stringValue: log.note },
+          petName: { stringValue: log.petName },
+          petId: { stringValue: log.petId },
+        },
+      }),
+    });
+    const json = await res.json();
+    return json.name.split("/").pop();
+  } catch (error) {
+    console.error("Error adding log:", error);
+    return null;
+  }
 }
 
-// Update an activity log
 export async function updateActivityLog(log: ActivityLog): Promise<void> {
-  await fetch(`${FIREBASE_BASE_URL}/activityLogs/${log.id}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      fields: {
-        date: { stringValue: log.date },
-        activity: { stringValue: log.activity },
-        note: { stringValue: log.note },
-        petName: { stringValue: log.petName },
-        petId: { stringValue: log.petId },
-      },
-    }),
-  });
+  try {
+    await fetch(`${FIREBASE_BASE_URL}/activityLogs/${log.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        fields: {
+          date: { stringValue: log.date },
+          activity: { stringValue: log.activity },
+          note: { stringValue: log.note },
+          petName: { stringValue: log.petName },
+          petId: { stringValue: log.petId },
+        },
+      }),
+    });
+  } catch (error) {
+    console.error("Error updating log:", error);
+  }
 }
 
-// Delete an activity log
 export async function deleteActivityLog(id: string): Promise<void> {
-  await fetch(`${FIREBASE_BASE_URL}/activityLogs/${id}`, { method: "DELETE" });
+  try {
+    await fetch(`${FIREBASE_BASE_URL}/activityLogs/${id}`, { method: "DELETE" });
+  } catch (error) {
+    console.error("Error deleting log:", error);
+  }
 }
 
 // ---------- Default-like mock for backward compatibility ----------
