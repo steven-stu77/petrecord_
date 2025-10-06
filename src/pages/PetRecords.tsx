@@ -34,7 +34,7 @@ export function PetRecords(_: PetRecordsProps) {
       }
     };
     loadPets();
-  }, []);
+  }, [setPets]);
 
   // 🧭 Navigation
   const onNavigate = (page: string) => {
@@ -245,47 +245,67 @@ export function PetRecords(_: PetRecordsProps) {
                     }}
                   >
                     {/* Edit */}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleEditPet(pet);
-                      }}
-                      style={{
-                        flex: 1,
-                        padding: "0.5rem",
-                        background: "#FEF9F5",
-                        color: "black",
-                        border: "none",
-                        borderRadius: "0.375rem",
-                        fontSize: "0.875rem",
-                        cursor: "pointer",
-                      }}
-                    >
-                      ✏️ Edit
-                    </button>
+                      <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleEditPet(pet);
+                    }}
+                    style={{
+                      flex: 1,
+                      padding: "0.5rem",
+                      background: "#FEF9F5",
+                      color: "black",
+                      border: "none",
+                      borderRadius: "0.375rem",
+                      fontSize: "0.875rem",
+                      cursor: "pointer",
+                      transition: "background 0.3s ease",
+                    }}
+                    onMouseEnter={(e) =>
+                      (e.currentTarget.style.background = "#f7eda8ff")
+                    }
+                    onMouseLeave={(e) =>
+                      (e.currentTarget.style.background = "#FEF9F5")
+                    }
+                  >
+                    ✏️ Edit
+                  </button>
 
                     {/* Delete */}
                     <button
-                      onClick={(e) => {
-                        e.stopPropagation();
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (
+                        window.confirm(
+                          `Are you sure you want to delete ${pet.name}?`
+                        )
+                      ) {
                         handleDeletePet(pet.id);
-                      }}
-                      style={{
-                        width: "2rem",
-                        height: "2rem",
-                        background: "#FCA5A5",
-                        color: "white",
-                        border: "none",
-                        borderRadius: "50%",
-                        fontSize: "1rem",
-                        cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      🗑
-                    </button>
+                      }
+                    }}
+                    style={{
+                      width: "2rem",
+                      height: "2rem",
+                      background: "#FCA5A5",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "50%",
+                      fontSize: "1rem",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      transition: "background 0.3s ease",
+                    }}
+                    onMouseEnter={(e) =>
+                      (e.currentTarget.style.background = "#f55c5cff")
+                    }
+                    onMouseLeave={(e) =>
+                      (e.currentTarget.style.background = "#FCA5A5")
+                    }
+                  >
+                    🗑
+                  </button>
                   </div>
                 </div>
               </motion.div>
